@@ -1,0 +1,86 @@
+import { unitRouter } from "../routes/unit.route.js";
+import { customerRouter } from "../routes/customer.route.js";
+import { supplierRouter } from "../routes/supplier.route.js";
+import { productRouter } from "../routes/product.route.js";
+import { accountRouter } from "../routes/account.route.js";
+import { productCategoryRouter } from "../routes/productCategory.route.js";
+import { userRouter } from "../routes/user.route.js";
+import { goodsReceiptRouter } from "../routes/goodsReceipt.route.js";
+import { supplierBillRouter } from "../routes/supplierBill.route.js";
+import { paymentRouter } from "../routes/payment.route.js";
+import { reportRouter } from "../routes/report.route.js";
+import { shipmentRouter } from "../routes/shipment.route.js";
+import { purchaseRequisitionRouter } from "../routes/purchaseRequisition.route.js";
+import { purchaseOrderRouter } from "../routes/purchaseOrder.route.js";
+
+// resource ที่จะแสดงในหน้า Swagger: "prefix" -> router
+// เพิ่ม resource ใหม่ ก็เพิ่ม 1 บรรทัดที่นี่
+const resources = {
+  units: unitRouter,
+  customers: customerRouter,
+  suppliers: supplierRouter,
+  products: productRouter,
+  accounts: accountRouter,
+  categories: productCategoryRouter,
+  users: userRouter,
+  "goods-receipts": goodsReceiptRouter,
+  bills: supplierBillRouter,
+  payments: paymentRouter,
+  reports: reportRouter,
+  shipments: shipmentRouter,
+  "purchase-requisitions": purchaseRequisitionRouter,
+  "purchase-orders": purchaseOrderRouter,
+};
+
+// สร้าง Swagger spec อัตโนมัติจาก router (อ่าน path + method เอง ไม่ต้องเขียน comment)
+export function buildSwaggerSpec() {
+  const paths = {};
+
+  for (const [name, subRouter] of Object.entries(resources)) {
+    for (const layer of subRouter.stack) {
+      if (!layer.route) {
+        continue;
+      }
+
+      // ต่อ path เต็ม: /api + /units + path ของ route แล้วเปลี่ยน :id -> {id}
+      const routePath = layer.route.path === "/" ? "" : layer.route.path;
+      const fullPath = `/api/${name}${routePath}`.replace(/:(\w+)/g, "{$1}");
+
+      paths[fullPath] = paths[fullPath] || {};
+
+      for (const method of Object.keys(layer.route.methods)) {
+        const operation = {
+          tags: [name],
+          responses: { 200: { description: "OK" } },
+        };
+
+        // ถ้ามี {id} ใน path -> ทำช่องกรอก id ให้
+        const idParams = [...fullPath.matchAll(/{(\w+)}/g)].map((x) => ({
+          in: "path",
+          name: x[1],
+          required: true,
+          schema: { type: "string" },
+        }));
+        if (idParams.length > 0) {
+          operation.parameters = idParams;
+        }
+
+        // POST/PUT/PATCH -> ทำช่องกรอก JSON body ไว้ลองยิง
+        if (method === "post" || method === "put" || method === "patch") {
+          operation.requestBody = {
+            content: { "application/json": { schema: { type: "object" } } },
+          };
+        }
+
+        paths[fullPath][method] = operation;
+      }
+    }
+  }
+
+  return {
+    openapi: "3.0.0",
+    info: { title: "MiniProjectERP API", version: "1.0.0" },
+    servers: [{ url: "http://localhost:3001" }],
+    paths,
+  };
+}

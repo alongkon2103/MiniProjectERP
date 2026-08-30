@@ -1,0 +1,649 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model account {
+  id             Int            @id @default(autoincrement())
+  code           String         @unique @db.VarChar(10)
+  name           String         @db.VarChar(120)
+  type           account_type
+  normal_balance String         @db.Char(1)
+  is_active      Boolean        @default(true)
+  journal_line   journal_line[]
+  payment            payment[]
+  receipt            receipt[]
+  supplier_bill_line supplier_bill_line[]
+  invoice_line       invoice_line[]
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model app_user {
+  id             Int           @id @default(autoincrement())
+  username       String           @unique @db.VarChar(50)
+  password_hash  String
+  full_name      String           @db.VarChar(120)
+  email          String?          @db.VarChar(120)
+  is_active      Boolean          @default(true)
+  created_at     DateTime         @default(now()) @db.Timestamptz(6)
+  updated_at     DateTime         @default(now()) @db.Timestamptz(6)
+  audit_log      audit_log[]
+  journal_entry  journal_entry[]
+  stock_movement stock_movement[]
+  user_role      user_role[]
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model audit_log {
+  id         Int    @id @default(autoincrement())
+  user_id    Int?
+  action     String    @db.VarChar(20)
+  entity     String    @db.VarChar(50)
+  entity_id  Int?
+  diff       Json?
+  ip_address String?   @db.Inet
+  created_at DateTime  @default(now()) @db.Timestamptz(6)
+  app_user   app_user? @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([entity, entity_id, created_at(sort: Desc)], map: "idx_audit_entity")
+  @@index([user_id, created_at(sort: Desc)], map: "idx_audit_user")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model customer {
+  id          Int   @id @default(autoincrement())
+  code        String   @unique @db.VarChar(20)
+  name        String   @db.VarChar(200)
+  tax_id      String?  @db.VarChar(13)
+  address     String?
+  phone       String?  @db.VarChar(30)
+  email       String?  @db.VarChar(120)
+  credit_days Int      @default(0)
+  is_active   Boolean  @default(true)
+  created_at  DateTime @default(now()) @db.Timestamptz(6)
+  quotation   quotation[]
+  sales_order sales_order[]
+  shipment    shipment[]
+  invoice     invoice[]
+  receipt     receipt[]
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model doc_sequence {
+  doc_type String @db.VarChar(10)
+  year     Int
+  last_no  Int    @default(0)
+
+  @@id([doc_type, year])
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model journal_entry {
+  id                  Int          @id @default(autoincrement())
+  entry_no            String          @unique @db.VarChar(20)
+  entry_date          DateTime        @db.Date
+  description         String?
+  ref_type            String?         @db.VarChar(30)
+  ref_id              Int?
+  reversal_of_id      Int?
+  created_by          Int
+  created_at          DateTime        @default(now()) @db.Timestamptz(6)
+  app_user            app_user        @relation(fields: [created_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  journal_entry       journal_entry?  @relation("journal_entryTojournal_entry", fields: [reversal_of_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  other_journal_entry journal_entry[] @relation("journal_entryTojournal_entry")
+  journal_line        journal_line[]
+
+  @@index([entry_date], map: "idx_je_date")
+  @@index([ref_type, ref_id], map: "idx_je_ref")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model journal_line {
+  id            Int        @id @default(autoincrement())
+  entry_id      Int
+  line_no       Int
+  account_id    Int
+  debit         Decimal       @default(0) @db.Decimal(18, 2)
+  credit        Decimal       @default(0) @db.Decimal(18, 2)
+  memo          String?
+  account       account       @relation(fields: [account_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  journal_entry journal_entry @relation(fields: [entry_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([entry_id, line_no])
+  @@index([account_id], map: "idx_jl_account")
+  @@index([entry_id], map: "idx_jl_entry")
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model permission {
+  id              Int               @id @default(autoincrement())
+  code            String            @unique @db.VarChar(60)
+  module          String            @db.VarChar(30)
+  action          String            @db.VarChar(30)
+  role_permission role_permission[]
+
+  @@unique([module, action])
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model product {
+  id               Int            @id @default(autoincrement())
+  sku              String            @unique @db.VarChar(40)
+  name             String            @db.VarChar(200)
+  category_id      Int?
+  unit_id          Int
+  sale_price       Decimal           @default(0) @db.Decimal(18, 2)
+  reorder_point    Decimal           @default(0) @db.Decimal(18, 4)
+  is_active        Boolean           @default(true)
+  created_at       DateTime          @default(now()) @db.Timestamptz(6)
+  updated_at       DateTime          @default(now()) @db.Timestamptz(6)
+  product_category product_category? @relation(fields: [category_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  unit             unit              @relation(fields: [unit_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  stock_movement   stock_movement[]
+  purchase_requisition_line purchase_requisition_line[]
+  purchase_order_line       purchase_order_line[]
+  goods_receipt_line        goods_receipt_line[]
+  supplier_bill_line        supplier_bill_line[]
+  quotation_line            quotation_line[]
+  sales_order_line          sales_order_line[]
+  shipment_line             shipment_line[]
+  invoice_line              invoice_line[]
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model product_category {
+  id      Int       @id @default(autoincrement())
+  code    String    @unique @db.VarChar(20)
+  name    String    @db.VarChar(100)
+  product product[]
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model role {
+  id              Int               @id @default(autoincrement())
+  code            String            @unique @db.VarChar(30)
+  name            String            @db.VarChar(80)
+  role_permission role_permission[]
+  user_role       user_role[]
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model role_permission {
+  role_id       Int
+  permission_id Int
+  permission    permission @relation(fields: [permission_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  role          role       @relation(fields: [role_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@id([role_id, permission_id])
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model stock_movement {
+  id            Int   @id @default(autoincrement())
+  product_id    Int
+  moved_at      DateTime @default(now()) @db.Timestamptz(6)
+  qty_change    Decimal  @db.Decimal(18, 4)
+  unit_cost     Decimal  @db.Decimal(18, 4)
+  value_change  Decimal  @db.Decimal(18, 2)
+  balance_qty   Decimal  @db.Decimal(18, 4)
+  balance_value Decimal  @db.Decimal(18, 2)
+  ref_type      String   @db.VarChar(30)
+  ref_id        Int
+  ref_no        String   @db.VarChar(20)
+  note          String?
+  created_by    Int
+  created_at    DateTime @default(now()) @db.Timestamptz(6)
+  app_user      app_user @relation(fields: [created_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  product       product  @relation(fields: [product_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([product_id, id(sort: Desc)], map: "idx_sm_product")
+  @@index([ref_type, ref_id], map: "idx_sm_ref")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model supplier {
+  id             Int   @id @default(autoincrement())
+  code           String   @unique @db.VarChar(20)
+  name           String   @db.VarChar(200)
+  tax_id         String?  @db.VarChar(13)
+  address        String?
+  phone          String?  @db.VarChar(30)
+  email          String?  @db.VarChar(120)
+  credit_days    Int      @default(0)
+  is_active      Boolean  @default(true)
+  created_at     DateTime @default(now()) @db.Timestamptz(6)
+  purchase_order purchase_order[]
+  goods_receipt  goods_receipt[]
+  supplier_bill  supplier_bill[]
+  payment        payment[]
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model unit {
+  id      Int       @id @default(autoincrement())
+  code    String    @unique @db.VarChar(20)
+  name    String    @db.VarChar(60)
+  product product[]
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model user_role {
+  user_id  Int
+  role_id  Int
+  role     role     @relation(fields: [role_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  app_user app_user @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@id([user_id, role_id])
+}
+
+// ============================================================
+//  PURCHASING  — ใบขอซื้อ (PR) → PO → รับของ (GR) → ตั้งหนี้ (Bill) → จ่ายเงิน (Payment)
+//  หมายเหตุ: เอกสารพวกนี้ "ไม่ถือ" ยอดสต๊อก/ยอดเงินเอง
+//  - GR ตอน post  -> สร้าง stock_movement (ของเข้า) + journal (Dr สินค้าคงเหลือ)
+//  - Bill ตอน post -> สร้าง journal (Cr เจ้าหนี้การค้า)
+//  - Payment ตอน post -> สร้าง journal (Dr เจ้าหนี้ / Cr เงินสด-ธนาคาร)
+//  การเชื่อมกลับไปหา engine ใช้คอลัมน์ ref_type + ref_id ที่มีอยู่แล้วใน
+//  stock_movement / journal_entry (soft link) จึงไม่ต้องมี FK ตรง
+// ============================================================
+
+/// ใบขอซื้อ (PR) — เอกสารภายใน ยังไม่กระทบสต๊อก/บัญชี แค่ขออนุมัติ
+model purchase_requisition {
+  id             Int                      @id @default(autoincrement())
+  pr_no          String                      @unique @db.VarChar(20)
+  pr_date        DateTime                    @db.Date
+  status         doc_status                  @default(draft)
+  note           String?
+  created_by     Int
+  created_at     DateTime                    @default(now()) @db.Timestamptz(6)
+  line           purchase_requisition_line[]
+  purchase_order purchase_order[]
+
+  @@index([status], map: "idx_pr_status")
+}
+
+model purchase_requisition_line {
+  id                   Int               @id @default(autoincrement())
+  pr_id                Int
+  line_no              Int
+  product_id           Int
+  qty                  Decimal              @db.Decimal(18, 4)
+  note                 String?
+  purchase_requisition purchase_requisition @relation(fields: [pr_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  product              product              @relation(fields: [product_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@unique([pr_id, line_no])
+}
+
+/// ใบสั่งซื้อ (PO) — ส่งให้ผู้ขาย เป็นข้อผูกพัน ยังไม่กระทบสต๊อก/บัญชี
+model purchase_order {
+  id                   Int                @id @default(autoincrement())
+  po_no                String                @unique @db.VarChar(20)
+  po_date              DateTime              @db.Date
+  supplier_id          Int
+  pr_id                Int?
+  status               doc_status            @default(draft)
+  subtotal_amount      Decimal               @default(0) @db.Decimal(18, 2)
+  vat_amount           Decimal               @default(0) @db.Decimal(18, 2)
+  total_amount         Decimal               @default(0) @db.Decimal(18, 2)
+  note                 String?
+  created_by           Int
+  created_at           DateTime              @default(now()) @db.Timestamptz(6)
+  supplier             supplier              @relation(fields: [supplier_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  purchase_requisition purchase_requisition? @relation(fields: [pr_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  line                 purchase_order_line[]
+  goods_receipt        goods_receipt[]
+  supplier_bill        supplier_bill[]
+
+  @@index([supplier_id], map: "idx_po_supplier")
+  @@index([status], map: "idx_po_status")
+}
+
+model purchase_order_line {
+  id                 Int               @id @default(autoincrement())
+  po_id              Int
+  line_no            Int
+  product_id         Int
+  qty                Decimal              @db.Decimal(18, 4)
+  unit_price         Decimal              @db.Decimal(18, 2)
+  line_amount        Decimal              @db.Decimal(18, 2)
+  purchase_order     purchase_order       @relation(fields: [po_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  product            product              @relation(fields: [product_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  goods_receipt_line goods_receipt_line[]
+
+  @@unique([po_id, line_no])
+}
+
+/// รับของ (GR) — post แล้ว engine สต๊อกจะสร้าง stock_movement ของเข้า + ลงบัญชีสินค้าคงเหลือ
+model goods_receipt {
+  id             Int               @id @default(autoincrement())
+  gr_no          String               @unique @db.VarChar(20)
+  gr_date        DateTime             @db.Date
+  supplier_id    Int
+  po_id          Int?
+  status         doc_status           @default(draft)
+  note           String?
+  created_by     Int
+  created_at     DateTime             @default(now()) @db.Timestamptz(6)
+  supplier       supplier             @relation(fields: [supplier_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  purchase_order purchase_order?      @relation(fields: [po_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  line           goods_receipt_line[]
+  supplier_bill  supplier_bill[]
+
+  @@index([supplier_id], map: "idx_gr_supplier")
+  @@index([status], map: "idx_gr_status")
+}
+
+model goods_receipt_line {
+  id                  Int               @id @default(autoincrement())
+  gr_id               Int
+  line_no             Int
+  product_id          Int
+  po_line_id          Int?
+  qty                 Decimal              @db.Decimal(18, 4)
+  unit_cost           Decimal              @db.Decimal(18, 4)
+  goods_receipt       goods_receipt        @relation(fields: [gr_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  product             product              @relation(fields: [product_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  purchase_order_line purchase_order_line? @relation(fields: [po_line_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@unique([gr_id, line_no])
+}
+
+/// ตั้งหนี้ (Bill) — ใบวางบิลจากผู้ขาย post แล้วลงบัญชี Cr เจ้าหนี้การค้า
+model supplier_bill {
+  id                 Int               @id @default(autoincrement())
+  bill_no            String               @unique @db.VarChar(20)
+  supplier_ref       String?              @db.VarChar(40)
+  bill_date          DateTime             @db.Date
+  due_date           DateTime?            @db.Date
+  supplier_id        Int
+  po_id              Int?
+  gr_id              Int?
+  subtotal_amount    Decimal              @default(0) @db.Decimal(18, 2)
+  vat_amount         Decimal              @default(0) @db.Decimal(18, 2)
+  total_amount       Decimal              @default(0) @db.Decimal(18, 2)
+  status             doc_status           @default(draft)
+  created_by         Int
+  created_at         DateTime             @default(now()) @db.Timestamptz(6)
+  supplier           supplier             @relation(fields: [supplier_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  purchase_order     purchase_order?      @relation(fields: [po_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  goods_receipt      goods_receipt?       @relation(fields: [gr_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  line               supplier_bill_line[]
+  payment_allocation payment_allocation[]
+
+  @@index([supplier_id], map: "idx_bill_supplier")
+  @@index([status], map: "idx_bill_status")
+}
+
+model supplier_bill_line {
+  id            Int        @id @default(autoincrement())
+  bill_id       Int
+  line_no       Int
+  product_id    Int?
+  account_id    Int?
+  description   String?
+  qty           Decimal       @default(1) @db.Decimal(18, 4)
+  unit_price    Decimal       @db.Decimal(18, 2)
+  line_amount   Decimal       @db.Decimal(18, 2)
+  supplier_bill supplier_bill @relation(fields: [bill_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  product       product?      @relation(fields: [product_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  account       account?      @relation(fields: [account_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@unique([bill_id, line_no])
+}
+
+/// จ่ายเงิน (Payment) — post แล้วลงบัญชี Dr เจ้าหนี้ / Cr เงินสด-ธนาคาร
+model payment {
+  id                 Int               @id @default(autoincrement())
+  payment_no         String               @unique @db.VarChar(20)
+  payment_date       DateTime             @db.Date
+  supplier_id        Int
+  method             pay_method           @default(transfer)
+  cash_account_id    Int
+  amount             Decimal              @db.Decimal(18, 2)
+  status             doc_status           @default(draft)
+  note               String?
+  created_by         Int
+  created_at         DateTime             @default(now()) @db.Timestamptz(6)
+  supplier           supplier             @relation(fields: [supplier_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  account            account              @relation(fields: [cash_account_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  payment_allocation payment_allocation[]
+
+  @@index([supplier_id], map: "idx_payment_supplier")
+}
+
+/// ตัดจ่ายบิล — 1 การจ่ายตัดได้หลายบิล / 1 บิลถูกทยอยจ่ายได้ (ใช้ทำ AP aging)
+model payment_allocation {
+  id            Int        @id @default(autoincrement())
+  payment_id    Int
+  bill_id       Int
+  amount        Decimal       @db.Decimal(18, 2)
+  payment       payment       @relation(fields: [payment_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  supplier_bill supplier_bill @relation(fields: [bill_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@unique([payment_id, bill_id])
+}
+
+// ============================================================
+//  SALES  — ใบเสนอราคา (QT) → SO → ส่งของ (Shipment) → Invoice → รับเงิน (Receipt)
+//  - Shipment ตอน post -> engine สต๊อกสร้าง stock_movement (ของออก, ต้นทุนถัวเฉลี่ย)
+//                         + journal (Dr ต้นทุนขาย / Cr สินค้าคงเหลือ)
+//  - Invoice ตอน post  -> journal (Dr ลูกหนี้การค้า / Cr รายได้ขาย [+ ภาษีขาย])
+//  - Receipt ตอน post  -> journal (Dr เงินสด-ธนาคาร / Cr ลูกหนี้การค้า)
+// ============================================================
+
+/// ใบเสนอราคา (QT) — ยังไม่กระทบสต๊อก/บัญชี
+model quotation {
+  id              Int           @id @default(autoincrement())
+  qt_no           String           @unique @db.VarChar(20)
+  qt_date         DateTime         @db.Date
+  valid_until     DateTime?        @db.Date
+  customer_id     Int
+  status          doc_status       @default(draft)
+  subtotal_amount Decimal          @default(0) @db.Decimal(18, 2)
+  vat_amount      Decimal          @default(0) @db.Decimal(18, 2)
+  total_amount    Decimal          @default(0) @db.Decimal(18, 2)
+  note            String?
+  created_by      Int
+  created_at      DateTime         @default(now()) @db.Timestamptz(6)
+  customer        customer         @relation(fields: [customer_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  line            quotation_line[]
+  sales_order     sales_order[]
+
+  @@index([customer_id], map: "idx_qt_customer")
+}
+
+model quotation_line {
+  id          Int    @id @default(autoincrement())
+  qt_id       Int
+  line_no     Int
+  product_id  Int
+  qty         Decimal   @db.Decimal(18, 4)
+  unit_price  Decimal   @db.Decimal(18, 2)
+  line_amount Decimal   @db.Decimal(18, 2)
+  quotation   quotation @relation(fields: [qt_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  product     product   @relation(fields: [product_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@unique([qt_id, line_no])
+}
+
+/// ใบสั่งขาย (SO) — ข้อผูกพัน ยังไม่กระทบสต๊อก/บัญชี
+model sales_order {
+  id              Int             @id @default(autoincrement())
+  so_no           String             @unique @db.VarChar(20)
+  so_date         DateTime           @db.Date
+  customer_id     Int
+  qt_id           Int?
+  status          doc_status         @default(draft)
+  subtotal_amount Decimal            @default(0) @db.Decimal(18, 2)
+  vat_amount      Decimal            @default(0) @db.Decimal(18, 2)
+  total_amount    Decimal            @default(0) @db.Decimal(18, 2)
+  note            String?
+  created_by      Int
+  created_at      DateTime           @default(now()) @db.Timestamptz(6)
+  customer        customer           @relation(fields: [customer_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  quotation       quotation?         @relation(fields: [qt_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  line            sales_order_line[]
+  shipment        shipment[]
+  invoice         invoice[]
+
+  @@index([customer_id], map: "idx_so_customer")
+  @@index([status], map: "idx_so_status")
+}
+
+model sales_order_line {
+  id            Int          @id @default(autoincrement())
+  so_id         Int
+  line_no       Int
+  product_id    Int
+  qty           Decimal         @db.Decimal(18, 4)
+  unit_price    Decimal         @db.Decimal(18, 2)
+  line_amount   Decimal         @db.Decimal(18, 2)
+  sales_order   sales_order     @relation(fields: [so_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  product       product         @relation(fields: [product_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  shipment_line shipment_line[]
+
+  @@unique([so_id, line_no])
+}
+
+/// ส่งของ (Shipment) — post แล้ว engine สต๊อกตัดของออกตามต้นทุนถัวเฉลี่ย + ลงต้นทุนขาย
+model shipment {
+  id          Int          @id @default(autoincrement())
+  sh_no       String          @unique @db.VarChar(20)
+  sh_date     DateTime        @db.Date
+  customer_id Int
+  so_id       Int?
+  status      doc_status      @default(draft)
+  note        String?
+  created_by  Int
+  created_at  DateTime        @default(now()) @db.Timestamptz(6)
+  customer    customer        @relation(fields: [customer_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  sales_order sales_order?    @relation(fields: [so_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  line        shipment_line[]
+  invoice     invoice[]
+
+  @@index([customer_id], map: "idx_sh_customer")
+  @@index([status], map: "idx_sh_status")
+}
+
+model shipment_line {
+  id               Int            @id @default(autoincrement())
+  shipment_id      Int
+  line_no          Int
+  product_id       Int
+  so_line_id       Int?
+  qty              Decimal           @db.Decimal(18, 4)
+  shipment         shipment          @relation(fields: [shipment_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  product          product           @relation(fields: [product_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  sales_order_line sales_order_line? @relation(fields: [so_line_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@unique([shipment_id, line_no])
+}
+
+/// ใบแจ้งหนี้/ขาย (Invoice) — post แล้วลงบัญชี Dr ลูกหนี้ / Cr รายได้ขาย
+model invoice {
+  id                 Int               @id @default(autoincrement())
+  inv_no             String               @unique @db.VarChar(20)
+  inv_date           DateTime             @db.Date
+  due_date           DateTime?            @db.Date
+  customer_id        Int
+  so_id              Int?
+  shipment_id        Int?
+  subtotal_amount    Decimal              @default(0) @db.Decimal(18, 2)
+  vat_amount         Decimal              @default(0) @db.Decimal(18, 2)
+  total_amount       Decimal              @default(0) @db.Decimal(18, 2)
+  status             doc_status           @default(draft)
+  created_by         Int
+  created_at         DateTime             @default(now()) @db.Timestamptz(6)
+  customer           customer             @relation(fields: [customer_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  sales_order        sales_order?         @relation(fields: [so_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  shipment           shipment?            @relation(fields: [shipment_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  line               invoice_line[]
+  receipt_allocation receipt_allocation[]
+
+  @@index([customer_id], map: "idx_inv_customer")
+  @@index([status], map: "idx_inv_status")
+}
+
+model invoice_line {
+  id          Int   @id @default(autoincrement())
+  invoice_id  Int
+  line_no     Int
+  product_id  Int?
+  account_id  Int?
+  description String?
+  qty         Decimal  @default(1) @db.Decimal(18, 4)
+  unit_price  Decimal  @db.Decimal(18, 2)
+  line_amount Decimal  @db.Decimal(18, 2)
+  invoice     invoice  @relation(fields: [invoice_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  product     product? @relation(fields: [product_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  account     account? @relation(fields: [account_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@unique([invoice_id, line_no])
+}
+
+/// รับเงิน (Receipt) — post แล้วลงบัญชี Dr เงินสด-ธนาคาร / Cr ลูกหนี้การค้า
+model receipt {
+  id                 Int               @id @default(autoincrement())
+  receipt_no         String               @unique @db.VarChar(20)
+  receipt_date       DateTime             @db.Date
+  customer_id        Int
+  method             pay_method           @default(transfer)
+  cash_account_id    Int
+  amount             Decimal              @db.Decimal(18, 2)
+  status             doc_status           @default(draft)
+  note               String?
+  created_by         Int
+  created_at         DateTime             @default(now()) @db.Timestamptz(6)
+  customer           customer             @relation(fields: [customer_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  account            account              @relation(fields: [cash_account_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  receipt_allocation receipt_allocation[]
+
+  @@index([customer_id], map: "idx_receipt_customer")
+}
+
+/// ตัดรับชำระ invoice — 1 การรับเงินตัดได้หลาย invoice (ใช้ทำ AR aging)
+model receipt_allocation {
+  id         Int  @id @default(autoincrement())
+  receipt_id Int
+  invoice_id Int
+  amount     Decimal @db.Decimal(18, 2)
+  receipt    receipt @relation(fields: [receipt_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  invoice    invoice @relation(fields: [invoice_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@unique([receipt_id, invoice_id])
+}
+
+enum account_type {
+  asset
+  liability
+  equity
+  revenue
+  expense
+}
+
+enum doc_status {
+  draft
+  pending
+  approved
+  posted
+  cancelled
+  voided
+}
+
+enum pay_method {
+  cash
+  transfer
+  cheque
+  other
+}

@@ -1,0 +1,32 @@
+import { Router } from "express";
+import { unitRouter } from "./unit.route.js";
+import { customerRouter } from "./customer.route.js";
+import { supplierRouter } from "./supplier.route.js";
+import { productRouter } from "./product.route.js";
+import { accountRouter } from "./account.route.js";
+import { productCategoryRouter } from "./productCategory.route.js";
+import { userRouter } from "./user.route.js";
+import { goodsReceiptRouter } from "./goodsReceipt.route.js";
+import { supplierBillRouter } from "./supplierBill.route.js";
+import { paymentRouter } from "./payment.route.js";
+import { reportRouter } from "./report.route.js";
+import { shipmentRouter } from "./shipment.route.js";
+import { purchaseRequisitionRouter } from "./purchaseRequisition.route.js";
+import { purchaseOrderRouter } from "./purchaseOrder.route.js";
+
+export const router = Router();
+
+router.use("/units", unitRouter);
+router.use("/customers", customerRouter);
+router.use("/suppliers", supplierRouter);
+router.use("/products", productRouter);
+router.use("/accounts", accountRouter);
+router.use("/categories", productCategoryRouter);
+router.use("/users", userRouter);
+router.use("/goods-receipts", goodsReceiptRouter);
+router.use("/bills", supplierBillRouter);
+router.use("/payments", paymentRouter);
+router.use("/reports", reportRouter);
+router.use("/shipments", shipmentRouter);
+router.use("/purchase-requisitions", purchaseRequisitionRouter);
+router.use("/purchase-orders", purchaseOrderRouter);
