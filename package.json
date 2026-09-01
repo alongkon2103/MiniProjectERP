@@ -2,7 +2,8 @@
   "name": "miniprojecterp",
   "version": "1.0.0",
   "main": "index.js",
-  "scripts": {
+   "scripts": {
+    "build": "prisma generate",
     "start": "tsx index.js",
     "dev": "tsx watch index.js",
     "seed": "tsx prisma/seed.js",
