@@ -68,4 +68,11 @@ export const SalesOrderModel = {
       where: { id: Number(id) },
     });
   },
+
+  async setStatus(id, status) {
+    return prisma.sales_order.update({
+      where: { id: Number(id) },
+      data: { status },
+    });
+  },
 };

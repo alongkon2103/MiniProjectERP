@@ -36,10 +36,7 @@ export const GoodsReceiptController = {
 
   async post(req, res) {
     try {
-      const userId = req.body.userId;
-      if (!userId) {
-        return res.status(400).json({ message: "ต้องระบุ userId (ผู้ post)" });
-      }
+      const userId = req.user.id; // ผู้ post มาจาก token ที่ login
       const gr = await GoodsReceiptService.post(req.params.id, userId);
       res.json(gr);
     } catch (err) {

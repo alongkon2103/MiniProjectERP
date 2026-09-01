@@ -1,3 +1,5 @@
+import { bodies, summaries } from "./apiDocs.js";
+import { authRouter } from "../routes/auth.route.js";
 import { unitRouter } from "../routes/unit.route.js";
 import { customerRouter } from "../routes/customer.route.js";
 import { supplierRouter } from "../routes/supplier.route.js";
@@ -12,10 +14,15 @@ import { reportRouter } from "../routes/report.route.js";
 import { shipmentRouter } from "../routes/shipment.route.js";
 import { purchaseRequisitionRouter } from "../routes/purchaseRequisition.route.js";
 import { purchaseOrderRouter } from "../routes/purchaseOrder.route.js";
+import { quotationRouter } from "../routes/quotation.route.js";
+import { salesOrderRouter } from "../routes/salesOrder.route.js";
+import { invoiceRouter } from "../routes/invoice.route.js";
+import { receiptRouter } from "../routes/receipt.route.js";
 
 // resource ที่จะแสดงในหน้า Swagger: "prefix" -> router
 // เพิ่ม resource ใหม่ ก็เพิ่ม 1 บรรทัดที่นี่
 const resources = {
+  auth: authRouter,
   units: unitRouter,
   customers: customerRouter,
   suppliers: supplierRouter,
@@ -30,6 +37,10 @@ const resources = {
   shipments: shipmentRouter,
   "purchase-requisitions": purchaseRequisitionRouter,
   "purchase-orders": purchaseOrderRouter,
+  quotations: quotationRouter,
+  "sales-orders": salesOrderRouter,
+  invoices: invoiceRouter,
+  receipts: receiptRouter,
 };
 
 // สร้าง Swagger spec อัตโนมัติจาก router (อ่าน path + method เอง ไม่ต้องเขียน comment)
@@ -49,10 +60,16 @@ export function buildSwaggerSpec() {
       paths[fullPath] = paths[fullPath] || {};
 
       for (const method of Object.keys(layer.route.methods)) {
+        const key = `${method} ${fullPath}`;
         const operation = {
           tags: [name],
           responses: { 200: { description: "OK" } },
         };
+
+        // คำอธิบายสั้นๆ (ถ้ามี)
+        if (summaries[key]) {
+          operation.summary = summaries[key];
+        }
 
         // ถ้ามี {id} ใน path -> ทำช่องกรอก id ให้
         const idParams = [...fullPath.matchAll(/{(\w+)}/g)].map((x) => ({
@@ -65,10 +82,12 @@ export function buildSwaggerSpec() {
           operation.parameters = idParams;
         }
 
-        // POST/PUT/PATCH -> ทำช่องกรอก JSON body ไว้ลองยิง
-        if (method === "post" || method === "put" || method === "patch") {
+        // ใส่ตัวอย่าง body เฉพาะ endpoint ที่ต้องส่ง body (จาก apiDocs)
+        // endpoint แบบ /post /approve /cancel ไม่มีตัวอย่าง = ไม่ต้องส่ง body
+        if (bodies[key]) {
           operation.requestBody = {
-            content: { "application/json": { schema: { type: "object" } } },
+            required: true,
+            content: { "application/json": { schema: { type: "object" }, example: bodies[key] } },
           };
         }
 
@@ -81,6 +100,12 @@ export function buildSwaggerSpec() {
     openapi: "3.0.0",
     info: { title: "MiniProjectERP API", version: "1.0.0" },
     servers: [{ url: "http://localhost:3001" }],
+    components: {
+      securitySchemes: {
+        bearerAuth: { type: "http", scheme: "bearer", bearerFormat: "JWT" },
+      },
+    },
+    security: [{ bearerAuth: [] }], // ทุก endpoint ต้องมี token (ยกเว้น /api/auth ที่ server เปิดไว้)
     paths,
   };
 }

@@ -38,10 +38,7 @@ export const PaymentController = {
   // post — ลงบัญชีจ่ายเงิน
   async post(req, res) {
     try {
-      const userId = req.body.userId;
-      if (!userId) {
-        return res.status(400).json({ message: "ต้องระบุ userId (ผู้ post)" });
-      }
+      const userId = req.user.id; // ผู้ post มาจาก token ที่ login
       const payment = await PaymentService.post(req.params.id, userId);
       res.json(payment);
     } catch (err) {

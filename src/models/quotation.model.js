@@ -1,6 +1,5 @@
 import { prisma } from "../config/prisma.js";
 
-// ใบเสนอราคา (QT) — header + line, ยังไม่กระทบสต๊อก/บัญชี
 export const QuotationModel = {
   async findAll() {
     return prisma.quotation.findMany({
@@ -66,6 +65,13 @@ export const QuotationModel = {
   async remove(id) {
     return prisma.quotation.delete({
       where: { id: Number(id) },
+    });
+  },
+
+  async setStatus(id, status) {
+    return prisma.quotation.update({
+      where: { id: Number(id) },
+      data: { status },
     });
   },
 };

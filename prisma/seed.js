@@ -1,3 +1,4 @@
+import bcrypt from "bcryptjs";
 import { prisma } from "../src/config/prisma.js";
 
 // ข้อมูลตัวอย่าง: ร้านค้าส่งเครื่องเขียน / อุปกรณ์สำนักงาน
@@ -13,11 +14,12 @@ async function main() {
   });
   await prisma.app_user.deleteMany({ where: { username: "demo" } });
 
-  // ---- user สำหรับใช้เป็น created_by ของ stock movement ----
+  // ---- user admin (รหัสผ่าน hash แล้ว: admin1234) ----
+  const adminHash = await bcrypt.hash("admin1234", 10);
   const admin = await prisma.app_user.upsert({
     where: { username: "admin" },
-    update: {},
-    create: { username: "admin", password_hash: "changeme", full_name: "ผู้ดูแลระบบ" },
+    update: { password_hash: adminHash },
+    create: { username: "admin", password_hash: adminHash, full_name: "ผู้ดูแลระบบ" },
   });
   // ผูก role Admin ให้ admin (ถ้ามี role code=ADMIN)
   const adminRole = await prisma.role.findFirst({ where: { code: "ADMIN" } });
